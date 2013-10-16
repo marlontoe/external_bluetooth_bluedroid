@@ -348,6 +348,7 @@ static BOOLEAN btif_av_state_opening_handler(btif_sm_event_t event, void *p_data
             {
                  state = BTAV_CONNECTION_STATE_CONNECTED;
                  av_state = BTIF_AV_STATE_OPENED;
+                 btif_set_edr_cap(&p_bta_data->open);
             }
             else
             {
@@ -367,6 +368,17 @@ static BOOLEAN btif_av_state_opening_handler(btif_sm_event_t event, void *p_data
                                              (p_bta_data->open.status == BTA_AV_SUCCESS));
             btif_queue_advance();
         } break;
+
+        case BTIF_AV_CONNECT_REQ_EVT:
+            BTIF_TRACE_WARNING0("Moved from idle by Incoming Connection request");
+            HAL_CBACK(bt_av_callbacks, connection_state_cb,
+                        BTAV_CONNECTION_STATE_DISCONNECTED, (bt_bdaddr_t*)p_data);
+
+            break;
+        case BTA_AV_PENDING_EVT:
+            BTIF_TRACE_WARNING0("Moved from idle by outgoing Connection request");
+            BTA_AvDisconnect(((tBTA_AV*)p_data)->pend.bd_addr);
+            break;
 
         CHECK_RC_EVENT(event, p_data);
 
