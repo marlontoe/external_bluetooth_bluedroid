@@ -2302,7 +2302,9 @@ static void btif_media_aa_prep_2_send(UINT8 nb_frame)
     /* Remove all the buffers not sent until there are only 4 in the queue */
     while (btif_media_cb.TxAaQ.count >= MAX_OUTPUT_BUFFER_QUEUE_SZ)
     {
+#if (defined(DEBUG_MEDIA_AV_FLOW) && (DEBUG_MEDIA_AV_FLOW == TRUE))
         APPL_TRACE_WARNING1("btif_media_aa_prep_2_send congestion buf count %d",btif_media_cb.TxAaQ.count);
+#endif
         GKI_freebuf(GKI_dequeue(&(btif_media_cb.TxAaQ)));
     }
 
