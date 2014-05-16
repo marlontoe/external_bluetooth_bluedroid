@@ -30,6 +30,7 @@
 
 #define LOG_TAG "bt_hci_bdroid"
 
+#include <cutils/properties.h>
 #include <utils/Log.h>
 #include <pthread.h>
 #include "bt_hci_bdroid.h"
