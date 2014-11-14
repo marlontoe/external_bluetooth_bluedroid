@@ -364,6 +364,7 @@ void bta_ag_scb_dealloc(tBTA_AG_SCB *p_scb)
 #if (BTM_WBS_INCLUDED == TRUE)
     bta_sys_stop_timer(&p_scb->cn_timer);
 #endif
+    bta_sys_stop_timer(&p_scb->colli_timer);
 
     /* initialize control block */
     memset(p_scb, 0, sizeof(tBTA_AG_SCB));
@@ -515,6 +516,26 @@ BOOLEAN bta_ag_other_scb_open(tBTA_AG_SCB *p_curr_scb)
 
     /* no other scb found */
     APPL_TRACE_DEBUG("No other ag scb open");
+    return FALSE;
+}
+
+/*******************************************************************************
+**
+** Function         bta_ag_scb_open
+**
+** Description      Check whether given scb is in open state.
+**
+**
+** Returns          TRUE if scb is in open state, FALSE otherwise.
+**
+*******************************************************************************/
+BOOLEAN bta_ag_scb_open(tBTA_AG_SCB *p_curr_scb)
+{
+    if (p_curr_scb && p_curr_scb->in_use && p_curr_scb->state == BTA_AG_OPEN_ST)
+    {
+        return TRUE;
+    }
+
     return FALSE;
 }
 

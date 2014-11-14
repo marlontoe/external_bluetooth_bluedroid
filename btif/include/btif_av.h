@@ -45,6 +45,7 @@ typedef enum {
     BTIF_AV_STOP_STREAM_REQ_EVT,
     BTIF_AV_SUSPEND_STREAM_REQ_EVT,
     BTIF_AV_SINK_CONFIG_REQ_EVT,
+    BTIF_AV_UPDATE_ENCODER_REQ_EVT,
 } btif_av_sm_event_t;
 
 
@@ -63,6 +64,18 @@ typedef enum {
 *******************************************************************************/
 
 btif_sm_handle_t btif_av_get_sm_handle(void);
+
+/*******************************************************************************
+**
+** Function         btif_av_get_addr
+**
+** Description      Fetches current AV BD address
+**
+** Returns          BD address
+**
+*******************************************************************************/
+
+bt_bdaddr_t btif_av_get_addr(void);
 
 /*******************************************************************************
 **
@@ -111,7 +124,7 @@ void btif_dispatch_sm_event(btif_av_sm_event_t event, void *p_data, int len);
 **
 *******************************************************************************/
 
-bt_status_t btif_av_init(void);
+bt_status_t btif_av_init(int service_id);
 
 /*******************************************************************************
 **
@@ -140,5 +153,14 @@ BOOLEAN btif_av_is_connected(void);
 *******************************************************************************/
 
 BOOLEAN btif_av_is_peer_edr(void);
+/******************************************************************************
+**
+** Function         btif_av_clear_remote_suspend_flag
+**
+** Description      Clears remote suspended flag
+**
+** Returns          Void
+********************************************************************************/
+void btif_av_clear_remote_suspend_flag(void);
 
 #endif /* BTIF_AV_H */

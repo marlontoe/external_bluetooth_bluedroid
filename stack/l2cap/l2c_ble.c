@@ -330,6 +330,7 @@ void l2cble_scanner_conn_comp (UINT16 handle, BD_ADDR bda, tBLE_ADDR_TYPE type,
     p_lcb->link_role  = HCI_ROLE_MASTER;
     p_lcb->transport  = BT_TRANSPORT_LE;
 
+#if (!defined(BTA_BLE_SKIP_CONN_UPD) || BTA_BLE_SKIP_CONN_UPD == FALSE)
     /* If there are any preferred connection parameters, set them now */
     if ( (p_dev_rec->conn_params.min_conn_int     >= BTM_BLE_CONN_INT_MIN ) &&
          (p_dev_rec->conn_params.min_conn_int     <= BTM_BLE_CONN_INT_MAX ) &&
@@ -355,7 +356,7 @@ void l2cble_scanner_conn_comp (UINT16 handle, BD_ADDR bda, tBLE_ADDR_TYPE type,
                                            p_dev_rec->conn_params.supervision_tout,
                                            0, 0);
     }
-
+#endif
     /* Tell BTM Acl management about the link */
     btm_acl_created (bda, NULL, p_dev_rec->sec_bd_name, handle, p_lcb->link_role, BT_TRANSPORT_LE);
 
@@ -418,9 +419,12 @@ void l2cble_advertiser_conn_comp (UINT16 handle, BD_ADDR bda, tBLE_ADDR_TYPE typ
 
     /* Tell BTM Acl management about the link */
     p_dev_rec = btm_find_or_alloc_dev (bda);
-
-    btm_acl_created (bda, NULL, p_dev_rec->sec_bd_name, handle, p_lcb->link_role, BT_TRANSPORT_LE);
-
+    memcpy(p_lcb->remote_bd_name, p_dev_rec->sec_bd_name, BTM_MAX_REM_BD_NAME_LEN);
+    //If Multi Adv not supported
+    if(btm_cb.cmn_ble_vsc_cb.adv_inst_max == 0)
+    {
+        btm_acl_created (bda, NULL, p_dev_rec->sec_bd_name, handle, p_lcb->link_role, BT_TRANSPORT_LE);
+    }
     p_lcb->peer_chnl_mask[0] = L2CAP_FIXED_CHNL_ATT_BIT | L2CAP_FIXED_CHNL_BLE_SIG_BIT | L2CAP_FIXED_CHNL_SMP_BIT;
 
     if (!HCI_LE_SLAVE_INIT_FEAT_EXC_SUPPORTED(btm_cb.devcb.local_le_features))

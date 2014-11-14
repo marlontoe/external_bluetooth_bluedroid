@@ -34,6 +34,7 @@
 #include "bta_hh_int.h"
 #include "bta_hh_co.h"
 #include "utl.h"
+#include "btm_ble_api.h"
 
 /*****************************************************************************
 **  Constants
@@ -104,8 +105,12 @@ void bta_hh_api_enable(tBTA_HH_DATA *p_data)
     }
     else
 #endif
+
+    if (bta_hh_cb.p_cback)
+    {
         /* signal BTA call back event */
         (* bta_hh_cb.p_cback)(BTA_HH_ENABLE_EVT, (tBTA_HH *)&status);
+    }
 }
 /*******************************************************************************
 **
@@ -571,6 +576,8 @@ void bta_hh_open_cmpl_act(tBTA_HH_DEV_CB *p_cb, tBTA_HH_DATA *p_data)
     conn.status = p_cb->status;
     conn.le_hid = p_cb->is_le_device;
     conn.scps_supported = p_cb->scps_supported;
+    if(p_cb->scps_supported)
+        BTA_HhUpdateLeScanParam(dev_handle,BTM_BLE_SCAN_SLOW_INT_1,BTM_BLE_SCAN_SLOW_WIN_1);
 
     if (!p_cb->is_le_device)
 #endif
@@ -980,6 +987,7 @@ void bta_hh_maint_dev_act(tBTA_HH_DEV_CB *p_cb, tBTA_HH_DATA *p_data)
     {
     case BTA_HH_ADD_DEV_EVT:    /* add a device */
         bdcpy(dev_info.bda, p_dev_info->bda);
+        dev_info.priority = p_dev_info->priority;
         /* initialize callback data */
         if (p_cb->hid_handle == BTA_HH_INVALID_HANDLE)
         {

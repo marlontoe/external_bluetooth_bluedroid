@@ -81,15 +81,19 @@ void hidh_get_str_attr( tSDP_DISC_REC *p_rec, UINT16 attr_id, UINT16 max_len, ch
 
     if ((p_attr = SDP_FindAttributeInRec(p_rec, attr_id)) != NULL)
     {
-        if((name_len = SDP_DISC_ATTR_LEN(p_attr->attr_len_type)) < max_len )
+        if((name_len = SDP_DISC_ATTR_LEN(p_attr->attr_len_type)) < max_len && name_len < 3)
         {
             memcpy( str, (char *) p_attr->attr_value.v.array, name_len );
             str[name_len] = '\0';
         }
-        else
+        else if (max_len < 4)
         {
             memcpy( str, (char *) p_attr->attr_value.v.array, max_len-1 );
             str[max_len-1] = '\0';
+        }
+        else
+        {
+            str[0] = '\0';
         }
     }
     else
@@ -239,13 +243,10 @@ static void hidh_search_callback (UINT16 sdp_result)
 *******************************************************************************/
 void HID_HostInit (void)
 {
+    UINT8 log_level = hh_cb.trace_level;
     memset(&hh_cb, 0, sizeof(tHID_HOST_CTB));
 
-#if defined(HID_INITIAL_TRACE_LEVEL)
-    hh_cb.trace_level = HID_INITIAL_TRACE_LEVEL;
-#else
-    hh_cb.trace_level = BT_TRACE_LEVEL_NONE;
-#endif
+    hh_cb.trace_level = log_level;
 }
 
 /*******************************************************************************

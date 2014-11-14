@@ -199,8 +199,8 @@ void BTA_DmSetDeviceName(char *p_name)
     {
         p_msg->hdr.event = BTA_DM_API_SET_NAME_EVT;
         /* truncate the name if needed */
-        BCM_STRNCPY_S((char *)p_msg->name, sizeof(p_msg->name), p_name, BD_NAME_LEN-1);
-        p_msg->name[BD_NAME_LEN-1]=0;
+        BCM_STRNCPY_S((char *)p_msg->name, sizeof(p_msg->name), p_name, BD_NAME_LEN);
+        p_msg->name[BD_NAME_LEN]=0;
 
         bta_sys_sendmsg(p_msg);
     }
@@ -714,7 +714,7 @@ void BTA_DmPasskeyCancel(BD_ADDR bd_addr)
 *******************************************************************************/
 void BTA_DmAddDevice(BD_ADDR bd_addr, DEV_CLASS dev_class, LINK_KEY link_key,
                      tBTA_SERVICE_MASK trusted_mask, BOOLEAN is_trusted,
-                     UINT8 key_type, tBTA_IO_CAP io_cap)
+                     UINT8 key_type, tBTA_IO_CAP io_cap, UINT8 pin_len)
 {
 
     tBTA_DM_API_ADD_DEVICE *p_msg;
@@ -728,6 +728,7 @@ void BTA_DmAddDevice(BD_ADDR bd_addr, DEV_CLASS dev_class, LINK_KEY link_key,
         p_msg->tm = trusted_mask;
         p_msg->is_trusted = is_trusted;
         p_msg->io_cap = io_cap;
+        p_msg->pin_len = pin_len;
 
         if (link_key)
         {
@@ -809,6 +810,7 @@ void BTA_DmAddDevWithName (BD_ADDR bd_addr, DEV_CLASS dev_class,
         p_msg->tm = trusted_mask;
         p_msg->is_trusted = is_trusted;
         p_msg->io_cap = io_cap;
+        p_msg->pin_len = 0;
 
         if (link_key)
         {
@@ -2309,7 +2311,10 @@ void BTA_DmBleScanFilterSetup(UINT8 action, tBTA_DM_BLE_PF_FILT_INDEX filt_index
         p_msg->hdr.event        = BTA_DM_API_SCAN_FILTER_SETUP_EVT;
         p_msg->action       = action;
         p_msg->filt_index = filt_index;
-        p_msg->p_filt_params = p_filt_params;
+        if(p_filt_params)
+        {
+            memcpy(&p_msg->filt_params, p_filt_params, sizeof(tBTA_DM_BLE_PF_FILT_PARAMS));
+        }
         p_msg->p_filt_param_cback = p_cmpl_cback;
         p_msg->ref_value        = ref_value;
 

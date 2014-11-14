@@ -27,7 +27,7 @@
 #define BT_TRACE_H
 
 #ifndef BTTRC_INCLUDED
-#define BTTRC_INCLUDED  FALSE
+#define BTTRC_INCLUDED FALSE
 #endif
 #ifndef BTTRC_PARSER_INCLUDED
 #define BTTRC_PARSER_INCLUDED FALSE
@@ -91,6 +91,7 @@
 #define BTTRC_ID_STK_CE                    51
 #define BTTRC_ID_STK_SNEP                  52
 #define BTTRC_ID_STK_NDEF                  53
+#define BTTRC_ID_STK_HIDD                  54
 
 
 /* LayerIDs for BTA */
@@ -554,6 +555,7 @@ EXPORT_API extern void BTTRC_StackTrace6(tBTTRC_LAYER_ID layer_id,
 #define L2CAP_TRACE_API(...)                     {if (l2cb.l2cap_trace_level >= BT_TRACE_LEVEL_API) BT_TRACE(TRACE_LAYER_L2CAP, TRACE_TYPE_API, ##__VA_ARGS__);}
 #define L2CAP_TRACE_EVENT(...)                   {if (l2cb.l2cap_trace_level >= BT_TRACE_LEVEL_EVENT) BT_TRACE(TRACE_LAYER_L2CAP, TRACE_TYPE_EVENT, ##__VA_ARGS__);}
 #define L2CAP_TRACE_DEBUG(...)                   {if (l2cb.l2cap_trace_level >= BT_TRACE_LEVEL_DEBUG) BT_TRACE(TRACE_LAYER_L2CAP, TRACE_TYPE_DEBUG, ##__VA_ARGS__);}
+#define L2CAP_TRACE_VERBOSE(...)                 {if (l2cb.l2cap_trace_level >= BT_TRACE_LEVEL_VERBOSE) BT_TRACE(TRACE_LAYER_L2CAP, TRACE_TYPE_DEBUG, ##__VA_ARGS__);}
 
 /* Define tracing for the SDP unit
 */
@@ -571,6 +573,15 @@ EXPORT_API extern void BTTRC_StackTrace6(tBTTRC_LAYER_ID layer_id,
 #define RFCOMM_TRACE_EVENT(...)                  {if (rfc_cb.trace_level >= BT_TRACE_LEVEL_EVENT) BT_TRACE(TRACE_LAYER_RFCOMM, TRACE_TYPE_EVENT, ##__VA_ARGS__);}
 #define RFCOMM_TRACE_DEBUG(...)                  {if (rfc_cb.trace_level >= BT_TRACE_LEVEL_DEBUG) BT_TRACE(TRACE_LAYER_RFCOMM, TRACE_TYPE_DEBUG, ##__VA_ARGS__);}
 
+/* define traces for L2c sock */
+#if (defined(OBX_OVER_L2CAP_INCLUDED) && OBX_OVER_L2CAP_INCLUDED == TRUE)
+#define L2C_SOCK_TRACE_ERROR(...)                  {if (l2cb.l2cap_trace_level >= BT_TRACE_LEVEL_ERROR) BT_TRACE(TRACE_LAYER_L2CAP, TRACE_TYPE_ERROR, ##__VA_ARGS__);}
+#define L2C_SOCK_TRACE_WARNING(...)                {if (l2cb.l2cap_trace_level >= BT_TRACE_LEVEL_WARNING) BT_TRACE(TRACE_LAYER_L2CAP, TRACE_TYPE_WARNING, ##__VA_ARGS__);}
+#define L2C_SOCK_TRACE_API(...)                    {if (l2cb.l2cap_trace_level >= BT_TRACE_LEVEL_API) BT_TRACE(TRACE_LAYER_L2CAP, TRACE_TYPE_API, ##__VA_ARGS__);}
+#define L2C_SOCK_TRACE_EVENT(...)                  {if (l2cb.l2cap_trace_level >= BT_TRACE_LEVEL_EVENT) BT_TRACE(TRACE_LAYER_L2CAP, TRACE_TYPE_EVENT, ##__VA_ARGS__);}
+#define L2C_SOCK_TRACE_DEBUG(...)                  {if (l2cb.l2cap_trace_level >= BT_TRACE_LEVEL_DEBUG) BT_TRACE(TRACE_LAYER_L2CAP, TRACE_TYPE_DEBUG, ##__VA_ARGS__);}
+#endif
+
 /* Generic Access Profile traces */
 #define GAP_TRACE_ERROR(...)                     {if (gap_cb.trace_level >= BT_TRACE_LEVEL_ERROR) BT_TRACE(TRACE_LAYER_GAP, TRACE_TYPE_ERROR, ##__VA_ARGS__);}
 #define GAP_TRACE_EVENT(...)                     {if (gap_cb.trace_level >= BT_TRACE_LEVEL_EVENT) BT_TRACE(TRACE_LAYER_GAP, TRACE_TYPE_EVENT, ##__VA_ARGS__);}
@@ -583,6 +594,15 @@ EXPORT_API extern void BTTRC_StackTrace6(tBTTRC_LAYER_ID layer_id,
 #define HIDH_TRACE_API(...)                       {if (hh_cb.trace_level >= BT_TRACE_LEVEL_API) BT_TRACE(TRACE_LAYER_HID, TRACE_TYPE_API, ##__VA_ARGS__);}
 #define HIDH_TRACE_EVENT(...)                     {if (hh_cb.trace_level >= BT_TRACE_LEVEL_EVENT) BT_TRACE(TRACE_LAYER_HID, TRACE_TYPE_EVENT, ##__VA_ARGS__);}
 #define HIDH_TRACE_DEBUG(...)                     {if (hh_cb.trace_level >= BT_TRACE_LEVEL_DEBUG) BT_TRACE(TRACE_LAYER_HID, TRACE_TYPE_DEBUG, ##__VA_ARGS__);}
+#define HIDH_TRACE_VERBOSE(...)                   {if (hh_cb.trace_level >= BT_TRACE_LEVEL_VERBOSE) BT_TRACE(TRACE_LAYER_HID, TRACE_TYPE_DEBUG, ##__VA_ARGS__);}
+
+/* define traces for HID Device */
+#define HIDD_TRACE_ERROR(...)                     {if (hd_cb.trace_level >= BT_TRACE_LEVEL_ERROR) BT_TRACE(TRACE_LAYER_HID, TRACE_TYPE_ERROR, ##__VA_ARGS__);}
+#define HIDD_TRACE_WARNING(...)                   {if (hd_cb.trace_level >= BT_TRACE_LEVEL_WARNING) BT_TRACE(TRACE_LAYER_HID, TRACE_TYPE_WARNING, ##__VA_ARGS__);}
+#define HIDD_TRACE_API(...)                       {if (hd_cb.trace_level >= BT_TRACE_LEVEL_API) BT_TRACE(TRACE_LAYER_HID, TRACE_TYPE_API, ##__VA_ARGS__);}
+#define HIDD_TRACE_EVENT(...)                     {if (hd_cb.trace_level >= BT_TRACE_LEVEL_EVENT) BT_TRACE(TRACE_LAYER_HID, TRACE_TYPE_EVENT, ##__VA_ARGS__);}
+#define HIDD_TRACE_DEBUG(...)                     {if (hd_cb.trace_level >= BT_TRACE_LEVEL_DEBUG) BT_TRACE(TRACE_LAYER_HID, TRACE_TYPE_DEBUG, ##__VA_ARGS__);}
+#define HIDD_TRACE_VERBOSE(...)                   {if (hd_cb.trace_level >= BT_TRACE_LEVEL_VERBOSE) BT_TRACE(TRACE_LAYER_HID, TRACE_TYPE_DEBUG, ##__VA_ARGS__);}
 
 /* define traces for BNEP */
 
@@ -686,6 +706,7 @@ EXPORT_API extern void BTTRC_StackTrace6(tBTTRC_LAYER_ID layer_id,
 #define L2CAP_TRACE_API(...)
 #define L2CAP_TRACE_EVENT(...)
 #define L2CAP_TRACE_DEBUG(...)
+#define L2CAP_TRACE_VERBOSE(...)
 
 /* Define tracing for the SDP unit
 */
@@ -715,6 +736,15 @@ EXPORT_API extern void BTTRC_StackTrace6(tBTTRC_LAYER_ID layer_id,
 #define HIDH_TRACE_API(...)
 #define HIDH_TRACE_EVENT(...)
 #define HIDH_TRACE_DEBUG(...)
+#define HIDH_TRACE_VERBOSE(...)
+
+/* define traces for HID Device */
+#define HIDD_TRACE_ERROR(...)
+#define HIDD_TRACE_WARNING(...)
+#define HIDD_TRACE_API(...)
+#define HIDD_TRACE_EVENT(...)
+#define HIDD_TRACE_DEBUG(...)
+#define HIDD_TRACE_VERBOSE(...)
 
 /* define traces for BNEP */
 
