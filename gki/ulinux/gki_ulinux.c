@@ -179,7 +179,7 @@ static void bt_alarm_cb(void *data)
 {
     UINT32 ticks_taken = 0;
 
-    alarm_service.timer_last_expired_us = now_us();
+    alarm_service.timer_last_expired_us = GKI_now_us();
     if (alarm_service.timer_last_expired_us > alarm_service.timer_started_us)
     {
         ticks_taken = GKI_MS_TO_TICKS((alarm_service.timer_last_expired_us

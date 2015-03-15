@@ -229,12 +229,13 @@ static UINT32 a2dp_media_task_stack[(A2DP_MEDIA_TASK_STACK_SIZE + 3) / 4];
    but due to link flow control or thread preemption in lower
    layers we might need to temporarily buffer up data */
 
-/* 18 frames is equivalent to 6.89*18*2.9 ~= 360 ms @ 44.1 khz, 20 ms mediatick */
+/* 18 frames is equivalent to 6.89*24*2.9 ~= 360 ms @ 44.1 khz, 20 ms mediatick */
 #define MAX_OUTPUT_A2DP_FRAME_QUEUE_SZ 18
 
 #ifndef MAX_PCM_FRAME_NUM_PER_TICK
-#define MAX_PCM_FRAME_NUM_PER_TICK     14
+#define MAX_PCM_FRAME_NUM_PER_TICK 14
 #endif
+
 #define MAX_PCM_ITER_NUM_PER_TICK     2
 
 //#define BTIF_MEDIA_VERBOSE_ENABLED
@@ -2841,7 +2842,7 @@ static void btif_get_num_aa_frame(UINT8 *num_of_iterations, UINT8 *num_of_frames
                 }
             }
             else
-             {
+            {
                 // For BR cases nof will be same as the value retrieved at result
                 APPL_TRACE_DEBUG("headset is of type BR %u", nof);
                 if (result > MAX_PCM_FRAME_NUM_PER_TICK)
@@ -2853,7 +2854,7 @@ static void btif_get_num_aa_frame(UINT8 *num_of_iterations, UINT8 *num_of_frames
                         = noi * result * pcm_bytes_per_frame;
                 }
                 nof = result;
-             }
+            }
             btif_media_cb.media_feeding_state.pcm.counter -= noi * nof * pcm_bytes_per_frame;
             APPL_TRACE_DEBUG("effective num of frames %u", nof);
             APPL_TRACE_DEBUG("num of iterations %u", noi);
@@ -3247,7 +3248,8 @@ static void btif_media_aa_prep_sbc_2_send(UINT8 nb_frame)
 
 static void btif_media_aa_prep_2_send(UINT8 nb_frame)
 {
-    VERBOSE("%s() - frames=%d (queue=%d)", __FUNCTION__, nb_frame, btif_media_cb.TxAaQ.count);
+    VERBOSE("%s() - frames=%d (queue=%d)", __FUNCTION__, nb_frame,
+                                        btif_media_cb.TxAaQ.count)
 
     while (btif_media_cb.TxAaQ.count >= (MAX_OUTPUT_A2DP_FRAME_QUEUE_SZ-nb_frame))
     {
@@ -3292,7 +3294,8 @@ static void btif_media_send_aa_frame(void)
     for (counter = 0; counter < nb_iterations; counter++)
     {
         /* format and Q buffer to send */
-        if (nb_frame_2_send != 0) {
+        if (nb_frame_2_send != 0)
+        {
             btif_media_aa_prep_2_send(nb_frame_2_send);
         }
     }
