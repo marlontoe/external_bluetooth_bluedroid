@@ -190,8 +190,8 @@ static void bt_alarm_cb(void *data)
               alarm_service.timer_started_us);
     }
 
-    GKI_timer_update(ticks_taken > ticks_scheduled
-                   ? ticks_taken : ticks_scheduled);
+    GKI_timer_update(ticks_taken > alarm_service.ticks_scheduled
+                   ? ticks_taken : alarm_service.ticks_scheduled);
 }
 
 /** NOTE: This is only called on init and may be called without the GKI_disable()
