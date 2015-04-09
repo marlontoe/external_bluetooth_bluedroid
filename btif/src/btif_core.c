@@ -126,6 +126,11 @@ static int btif_pending_mode = BT_SCAN_MODE_NONE;
 */
 static UINT8 btif_dut_mode = 0;
 
+#ifdef BOARD_HAVE_FMRADIO_BCM
+static btif_core_state_t btif_fm_state = BTIF_CORE_STATE_DISABLED;
+extern fm_callbacks_t *fm_hal_cbacks;
+#endif
+
 /************************************************************************************
 **  Static functions
 ************************************************************************************/
@@ -304,10 +309,23 @@ static void btif_task(UINT32 params)
         if (event == BT_EVT_TRIGGER_STACK_INIT)
         {
             BTIF_TRACE_DEBUG("btif_task: received trigger stack init event");
-            #if (BLE_INCLUDED == TRUE)
-            btif_dm_load_ble_local_keys();
-            #endif
-            BTA_EnableBluetooth(bte_dm_evt);
+            if (btif_core_state == BTIF_CORE_STATE_ENABLING)
+            {
+                #if (BLE_INCLUDED == TRUE)
+                btif_dm_load_ble_local_keys();
+                #endif
+                BTA_EnableBluetooth(bte_dm_evt);
+            }
+#ifdef BOARD_HAVE_FMRADIO_BCM
+            if (btif_fm_state == BTIF_CORE_STATE_ENABLING)
+            {
+#if (defined(HCILP_INCLUDED) && HCILP_INCLUDED == TRUE)
+                bte_main_enable_lpm(TRUE);
+#endif
+                btif_fm_state = BTIF_CORE_STATE_ENABLED;
+                HAL_CBACK(fm_hal_cbacks, state_changed_cb, FM_STATE_ON);
+            }
+#endif
         }
 
         /*
@@ -316,23 +334,18 @@ static void btif_task(UINT32 params)
          */
         if (event == BT_EVT_HARDWARE_INIT_FAIL)
         {
-            lock_slot(&mutex_bt_disable);
-            BTIF_TRACE_DEBUG("btif_task: mutex_bt_disable lock");
-            if(bt_disabled == FALSE)
-            {
-                BTIF_TRACE_DEBUG("btif_task: hardware init failed");
-                bte_main_disable();
-                btif_queue_release();
-                GKI_task_self_cleanup(BTIF_TASK);
-                bte_main_shutdown();
-                btif_dut_mode = 0;
-                btif_core_state = BTIF_CORE_STATE_DISABLED;
-                /*variable to avoid the double cleanup*/
-                bt_disabled = TRUE;
-                HAL_CBACK(bt_hal_cbacks,adapter_state_changed_cb,BT_STATE_OFF);
-            }
-            BTIF_TRACE_DEBUG("btif_task: mutex_bt_disable unlock");
-            unlock_slot(&mutex_bt_disable);
+            BTIF_TRACE_DEBUG("btif_task: hardware init failed");
+            bte_main_disable();
+            btif_queue_release();
+            GKI_task_self_cleanup(BTIF_TASK);
+            bte_main_shutdown();
+            btif_dut_mode = 0;
+            btif_core_state = BTIF_CORE_STATE_DISABLED;
+            HAL_CBACK(bt_hal_cbacks,adapter_state_changed_cb,BT_STATE_OFF);
+#ifdef BOARD_HAVE_FMRADIO_BCM
+            btif_fm_state = BTIF_CORE_STATE_DISABLED;
+            HAL_CBACK(fm_hal_cbacks, state_changed_cb, FM_STATE_OFF);
+#endif
             break;
         }
 
@@ -509,7 +522,7 @@ bt_status_t btif_init_bluetooth()
 
     if (status != GKI_SUCCESS)
         return BT_STATUS_FAIL;
-    btif_core_state = BTIF_CORE_STATE_INITIALIZED;
+
     return BT_STATUS_SUCCESS;
 }
 
@@ -533,6 +546,32 @@ static bt_status_t btif_associate_evt(void)
 }
 
 
+static void execute_enable_bluetooth(UINT16 event, char *p_param)
+{
+    if (btif_core_state != BTIF_CORE_STATE_DISABLED)
+        return;
+    btif_core_state = BTIF_CORE_STATE_ENABLING;
+
+#ifdef BOARD_HAVE_FMRADIO_BCM
+    switch (btif_fm_state)
+    {
+        case BTIF_CORE_STATE_DISABLED:
+            bte_main_enable();
+            break;
+        case BTIF_CORE_STATE_ENABLED:
+            #if (BLE_INCLUDED == TRUE)
+            btif_dm_load_ble_local_keys();
+            #endif
+            BTA_EnableBluetooth(bte_dm_evt);
+            break;
+        default:
+            break;
+    }
+#else
+    bte_main_enable();
+#endif
+}
+
 /*******************************************************************************
 **
 ** Function         btif_enable_bluetooth
@@ -547,21 +586,13 @@ bt_status_t btif_enable_bluetooth(void)
 {
     BTIF_TRACE_DEBUG("BTIF ENABLE BLUETOOTH");
 
-    if (btif_core_state != BTIF_CORE_STATE_DISABLED &&
-        btif_core_state != BTIF_CORE_STATE_INITIALIZED)
+    if (btif_core_state != BTIF_CORE_STATE_DISABLED)
     {
         ALOGD("not disabled\n");
         return BT_STATUS_DONE;
     }
 
-    btif_core_state = BTIF_CORE_STATE_ENABLING;
-
-    bt_disabled = FALSE;
-    ssr_triggered = FALSE;
-
-    init_slot_lock(&mutex_bt_disable);
-    /* Create the GKI tasks and run them */
-    bte_main_enable();
+    btif_transfer_context(execute_enable_bluetooth, 0, NULL, 0, NULL);
 
     return BT_STATUS_SUCCESS;
 }
@@ -632,8 +663,8 @@ void btif_enable_bluetooth_evt(tBTA_STATUS status, BD_ADDR local_bd)
     /* callback to HAL */
     if (status == BTA_SUCCESS)
     {
-        /* don't initialize a2dp service */
-        //btif_av_init(); // we need av_init only from init_sink, init_src
+        /* initialize a2dp service */
+        btif_av_init();
 
         /* init rfcomm & l2cap api */
         btif_sock_init();
@@ -733,20 +764,24 @@ bt_status_t btif_disable_bluetooth(void)
 void btif_disable_bluetooth_evt(void)
 {
     BTIF_TRACE_DEBUG("%s", __FUNCTION__);
-    if (ssr_triggered == TRUE)
+
+#ifdef BOARD_HAVE_FMRADIO_BCM
+    if (btif_fm_state == BTIF_CORE_STATE_DISABLED)
+#endif
     {
         BTIF_TRACE_DEBUG("%s SSR triggered,Ignore EVT",__FUNCTION__);
         return;
     }
 #if (defined(HCILP_INCLUDED) && HCILP_INCLUDED == TRUE)
-    bte_main_enable_lpm(FALSE);
+        bte_main_enable_lpm(FALSE);
 #endif
 
 #if (BLE_INCLUDED == TRUE)
-     BTA_VendorCleanup();
+        BTA_VendorCleanup();
 #endif
 
-     bte_main_disable();
+        bte_main_disable();
+    }
 
     /* update local state */
     btif_core_state = BTIF_CORE_STATE_DISABLED;
@@ -797,39 +832,30 @@ bt_status_t btif_shutdown_bluetooth(void)
 
     btif_shutdown_pending = 0;
 
-    lock_slot(&mutex_bt_disable);
-    if(bt_disabled == FALSE)
+    if (btif_core_state == BTIF_CORE_STATE_ENABLING)
     {
-        /*variable to avoid the double cleanup*/
-        bt_disabled = TRUE;
-        if (btif_core_state == BTIF_CORE_STATE_ENABLING)
-        {
-            // Java layer abort BT ENABLING, could be due to ENABLE TIMEOUT
-            // Direct call from cleanup()@bluetooth.c
-            // bring down HCI/Vendor lib
-            bte_main_disable();
-            btif_core_state = BTIF_CORE_STATE_DISABLED;
-            HAL_CBACK(bt_hal_cbacks, adapter_state_changed_cb, BT_STATE_OFF);
-        }
-
-        GKI_destroy_task(BTIF_TASK);
-        btif_queue_release();
-        bte_main_shutdown();
-
-        btif_dut_mode = 0;
+        // Java layer abort BT ENABLING, could be due to ENABLE TIMEOUT
+        // Direct call from cleanup()@bluetooth.c
+        // bring down HCI/Vendor lib
+        bte_main_disable();
+        btif_core_state = BTIF_CORE_STATE_DISABLED;
+        HAL_CBACK(bt_hal_cbacks, adapter_state_changed_cb, BT_STATE_OFF);
     }
-    else if (btif_core_state == BTIF_CORE_STATE_INITIALIZED)
+
+#ifdef BOARD_HAVE_FMRADIO_BCM
+    if (btif_fm_state != BTIF_CORE_STATE_DISABLED)
     {
-       // Java Layer called cleanup before calling enable due to START TIMEOUT
-       // Cleanup GKI task to reset the hal callback handle
-       BTIF_TRACE_WARNING("shutdown...cleanup called before enable");
-       GKI_destroy_task(BTIF_TASK);
-       btif_queue_release();
-       bte_main_shutdown();
-       btif_core_state = BTIF_CORE_STATE_DISABLED;
-       btif_dut_mode = 0;
+        bte_main_disable();
+        btif_fm_state = BTIF_CORE_STATE_DISABLED;
+        HAL_CBACK(fm_hal_cbacks, state_changed_cb, FM_STATE_OFF);
     }
-    unlock_slot(&mutex_bt_disable);
+#endif
+
+    GKI_destroy_task(BTIF_TASK);
+    btif_queue_release();
+    bte_main_shutdown();
+
+    btif_dut_mode = 0;
 
     bt_utils_cleanup();
 
@@ -1008,7 +1034,7 @@ static bt_status_t btif_in_get_remote_device_properties(bt_bdaddr_t *bd_addr)
     uint32_t num_props = 0;
 
     bt_bdname_t name, alias;
-    uint32_t cod, devtype, trustval;
+    uint32_t cod, devtype;
     bt_uuid_t remote_uuids[BT_MAX_NUM_UUIDS];
 
     memset(remote_properties, 0, sizeof(remote_properties));
@@ -1600,54 +1626,125 @@ bt_status_t btif_config_hci_snoop_log(uint8_t enable)
     return BT_STATUS_SUCCESS;
 }
 
-/*******************************************************************************
-**
-** Function         btif_data_profile_register
-**
-** Description      Sets BT_PROPERTY_ADAPTER_SCAN_MODE property when data
-**                  start registering.
-**
-** Returns          bt_status_t
-**
-*******************************************************************************/
-void btif_data_profile_register(int value)
+
+#ifdef BOARD_HAVE_FMRADIO_BCM
+typedef struct
 {
-    bt_property_t property;
-    int val;
+    UINT16  param_len;
+    UINT8   param[0];
+} tFM_VSC_CMPL;
 
-    //update the global in any case
-    btif_data_profile_registered = value;
+extern fm_callbacks_t *fm_hal_cbacks;
 
-    if (btif_pending_mode == BT_SCAN_MODE_NONE)
-    {
-        BTIF_TRACE_EVENT("%s: pending mode is BT_SCAN_MODE_NONE.. returning", __FUNCTION__);
+static void execute_enable_fm(UINT16 event, char *p_param)
+{
+    if (btif_fm_state != BTIF_CORE_STATE_DISABLED)
         return;
-    }
 
-    BTIF_TRACE_EVENT("%s: Data profile registration = %d", __FUNCTION__, value);
-    if (btif_data_profile_registered)
+    switch (btif_core_state)
     {
-        property.type = BT_PROPERTY_ADAPTER_SCAN_MODE;
-        val = btif_pending_mode;
-        property.val = &val;;
-        property.len = (sizeof(int));
-        /* Reset pending mode to None */
-        btif_pending_mode = BT_SCAN_MODE_NONE;
-        btif_set_adapter_property(&property);
+        case BTIF_CORE_STATE_DISABLED:
+            btif_fm_state = BTIF_CORE_STATE_ENABLING;
+            bte_main_enable();
+            break;
+        case BTIF_CORE_STATE_ENABLED:
+        case BTIF_CORE_STATE_DISABLING:
+            btif_fm_state = BTIF_CORE_STATE_ENABLED;
+            HAL_CBACK(fm_hal_cbacks, state_changed_cb, FM_STATE_ON);
+            break;
+        case BTIF_CORE_STATE_ENABLING:
+            btif_fm_state = BTIF_CORE_STATE_ENABLING;
+            break;
     }
 }
 
-/*******************************************************************************
-**
-** Function         btif_is_shutdown
-**
-** Description      Check btif_core_state before freeing gki buffer, do not
-**                  call gki free if the gki is already shutdown.
-**
-** Returns          btif_core_state boolean
-**
-*******************************************************************************/
-BOOLEAN btif_is_shutdown(void)
+bt_status_t btif_enable_fm(void)
 {
-   return (btif_core_state == BTIF_CORE_STATE_DISABLED);
+    BTIF_TRACE_DEBUG("%s", __FUNCTION__);
+
+    if (btif_fm_state != BTIF_CORE_STATE_DISABLED)
+    {
+        BTIF_TRACE_ERROR("btif_enable_fm : not disabled");
+        return BT_STATUS_DONE;
+    }
+
+    btif_transfer_context(execute_enable_fm, 0, NULL, 0, NULL);
+
+    return BT_STATUS_SUCCESS;
 }
+
+static void execute_disable_fm(UINT16 event, char *p_param)
+{
+    if (btif_fm_state != BTIF_CORE_STATE_ENABLED)
+        return;
+
+    switch (btif_core_state)
+    {
+        case BTIF_CORE_STATE_DISABLED:
+#if (defined(HCILP_INCLUDED) && HCILP_INCLUDED == TRUE)
+            bte_main_enable_lpm(FALSE);
+#endif
+#if (BLE_INCLUDED == TRUE)
+            BTA_VendorCleanup();
+#endif
+            bte_main_disable();
+            btif_fm_state = BTIF_CORE_STATE_DISABLED;
+            HAL_CBACK(fm_hal_cbacks, state_changed_cb, FM_STATE_OFF);
+            break;
+        case BTIF_CORE_STATE_ENABLING:
+        case BTIF_CORE_STATE_ENABLED:
+        case BTIF_CORE_STATE_DISABLING:
+            btif_fm_state = BTIF_CORE_STATE_DISABLED;
+            HAL_CBACK(fm_hal_cbacks, state_changed_cb, FM_STATE_ON);
+            break;
+    }
+}
+
+bt_status_t btif_disable_fm(void)
+{
+    BTIF_TRACE_DEBUG("%s", __FUNCTION__);
+
+    if (btif_fm_state != BTIF_CORE_STATE_ENABLED)
+    {
+        BTIF_TRACE_ERROR("btif_disable_fm : not yet enabled");
+        return BT_STATUS_NOT_READY;
+    }
+
+    btif_transfer_context(execute_disable_fm, 0, NULL, 0, NULL);
+
+    return BT_STATUS_SUCCESS;
+}
+
+static void execute_fm_vendor_cmd_cb(UINT16 event, char *p_param)
+{
+    tFM_VSC_CMPL *fm_param = (tFM_VSC_CMPL *)p_param;
+    HAL_CBACK(fm_hal_cbacks, vendor_command_cb,
+              event, fm_param->param, fm_param->param_len);
+}
+
+static void fm_vendor_cmd_cb(tBTM_VSC_CMPL *p)
+{
+    if (btif_fm_state == BTIF_CORE_STATE_ENABLED)
+    {
+        int len = sizeof(tFM_VSC_CMPL) + p->param_len;
+        tFM_VSC_CMPL *fm_param = (tFM_VSC_CMPL *)malloc(len);
+        if (fm_param)
+        {
+            fm_param->param_len = p->param_len;
+            memcpy(fm_param->param, p->p_param_buf, p->param_len);
+            btif_transfer_context(execute_fm_vendor_cmd_cb,
+                                  p->opcode, (char*)fm_param, len, NULL);
+            free(fm_param);
+        }
+    }
+}
+
+bt_status_t btif_fm_vendor_cmd(uint16_t opcode, uint8_t *buf, uint8_t len)
+{
+    BTIF_TRACE_DEBUG("%s", __FUNCTION__);
+    if (btif_fm_state != BTIF_CORE_STATE_ENABLED)
+        return BT_STATUS_NOT_READY;
+    BTM_VendorSpecificCommand(opcode, len, buf, fm_vendor_cmd_cb);
+    return BT_STATUS_SUCCESS;
+}
+#endif /* BOARD_HAVE_FMRADIO_BCM */
