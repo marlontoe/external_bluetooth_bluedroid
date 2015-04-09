@@ -40,6 +40,10 @@
 #include <hardware/bt_gatt.h>
 #include <hardware/bt_rc.h>
 
+#ifdef BOARD_HAVE_FMRADIO_BCM
+#include <hardware/fmradio.h>
+#endif
+
 #define LOG_NDDEBUG 0
 #define LOG_TAG "bluedroid"
 
@@ -64,6 +68,10 @@ bt_callbacks_t *bt_hal_cbacks = NULL;
 
 /** Operating System specific callouts for resource management */
 bt_os_callouts_t *bt_os_callouts = NULL;
+
+#ifdef BOARD_HAVE_FMRADIO_BCM
+fm_callbacks_t *fm_hal_cbacks = NULL;
+#endif
 
 /************************************************************************************
 **  Static functions
@@ -479,11 +487,84 @@ static int close_bluetooth_stack(struct hw_device_t* device)
     return 0;
 }
 
+#ifdef BOARD_HAVE_FMRADIO_BCM
+static int fm_set_callback(fm_callbacks_t* callbacks )
+{
+    ALOGD("set_callback");
+
+    /* store reference to user callbacks */
+    fm_hal_cbacks = callbacks;
+
+    return FM_STATUS_SUCCESS;
+}
+
+static int fm_enable( void )
+{
+    ALOGD("enable");
+
+    /* sanity check */
+    if (fm_hal_cbacks == NULL)
+        return FM_STATUS_NOT_READY;
+
+    return btif_enable_fm();
+}
+
+static int fm_disable(void)
+{
+    ALOGD("disable");
+
+    /* sanity check */
+    if (fm_hal_cbacks == NULL)
+        return FM_STATUS_NOT_READY;
+
+    return btif_disable_fm();
+}
+
+int fm_vendor_command(uint16_t opcode, uint8_t* buf, uint8_t len)
+{
+    /* sanity check */
+    if (fm_hal_cbacks == NULL)
+        return FM_STATUS_NOT_READY;
+
+    return btif_fm_vendor_cmd(opcode, buf, len);
+}
+
+static const fm_interface_t fmradioInterface = {
+    sizeof(fmradioInterface),
+    fm_set_callback,
+    fm_enable,
+    fm_disable,
+    fm_vendor_command
+};
+
+const fm_interface_t* fm_get_fmradio_interface ()
+{
+    return &fmradioInterface;
+}
+
+static int fm_close(struct hw_device_t* device)
+{
+    fm_disable();
+    return 0;
+}
+#endif
+
 static int open_bluetooth_stack (const struct hw_module_t* module, char const* name,
                                  struct hw_device_t** abstraction)
 {
-    UNUSED(name);
-
+#ifdef BOARD_HAVE_FMRADIO_BCM
+	if (!strncmp(name, FMRADIO_HARDWARE_MODULE_ID, strlen(FMRADIO_HARDWARE_MODULE_ID) + 1))
+	{
+		fmradio_device_t *device = malloc(sizeof(fmradio_device_t));
+    	device->common.tag = HARDWARE_DEVICE_TAG;
+    	device->common.version = 0;
+    	device->common.module = (struct hw_module_t*)module;
+    	device->common.close = fm_close;
+    	device->get_fmradio_interface = fm_get_fmradio_interface;
+    	*abstraction = (struct hw_device_t*)device;
+		return 0;
+	}
+#endif
     bluetooth_device_t *stack = malloc(sizeof(bluetooth_device_t) );
     memset(stack, 0, sizeof(bluetooth_device_t) );
     stack->common.tag = HARDWARE_DEVICE_TAG;

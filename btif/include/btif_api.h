@@ -368,4 +368,16 @@ void btif_dm_read_energy_info();
 **
 *******************************************************************************/
 bt_status_t btif_config_hci_snoop_log(uint8_t enable);
+
+
+#ifdef BOARD_HAVE_FMRADIO_BCM
+/*******************************************************************************
+**  FM Radio API
+********************************************************************************/
+bt_status_t btif_enable_fm(void);
+bt_status_t btif_disable_fm(void);
+bt_status_t btif_fm_vendor_cmd(uint16_t opcode, uint8_t *buf, uint8_t len);
+#endif /* BOARD_HAVE_FMRADIO_BCM */
+
+
 #endif /* BTIF_API_H */

@@ -116,6 +116,11 @@ ifeq ($(TARGET_PRODUCT), full_maguro)
 	LOCAL_CFLAGS += -DTARGET_MAGURO
 endif
 
+ifeq ($(strip $(BOARD_HAVE_FMRADIO_BCM)),true)
+LOCAL_CFLAGS += \
+	-DBOARD_HAVE_FMRADIO_BCM
+endif
+
 LOCAL_SHARED_LIBRARIES := \
 	libcutils \
 	libdl \
